@@ -48,7 +48,7 @@ def create_subcap_text(blocks):
     return "\n".join(output)
 
 # Streamlit UI
-st.title("EDL → SubCap Converter (with color filter and colors in filename)")
+st.title("EDL → SubCap Converter")
 
 uploaded_file = st.file_uploader("Upload EDL file", type=["edl", "txt"])
 
