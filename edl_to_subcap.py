@@ -1,13 +1,15 @@
-# Dieses Script wurde erstellt von Seb Riezler
-# 2025
+# This script was created by Seb Riezler
+# c 2025
 
 import streamlit as st
 import re
+import os
+from datetime import datetime
 
 def extract_loc_blocks(edl_text):
     """
-    Extrahiert LOC-Zeilen mit SRC IN/OUT Timecodes.
-    Verwendet nur den Kommentartext nach dem Farbnamen.
+    Extracts LOC lines with SRC IN/OUT timecodes.
+    Uses only the comment after the color name.
     """
     lines = edl_text.splitlines()
     blocks = []
@@ -16,8 +18,6 @@ def extract_loc_blocks(edl_text):
     last_src_end = None
 
     timecode_pattern = re.compile(r"\d{2}:\d{2}:\d{2}:\d{2}")
-
-    # Erkennung von *LOC: oder * LOC:, extrahiere Kommentar nach Farbe
     loc_comment_pattern = re.compile(
         r"\* ?LOC:\s*\d{2}:\d{2}:\d{2}:\d{2}\s+\S+\s+(.*)", re.IGNORECASE
     )
@@ -39,7 +39,7 @@ def extract_loc_blocks(edl_text):
     return blocks
 
 def create_subcap_text(blocks):
-    """Erstellt SubCap-formatierte Textdatei aus LOC-Blöcken."""
+    """Creates SubCap-formatted subtitle text."""
     output = ["<begin subtitles>\n"]
     for start, end, text in blocks:
         output.append(f"{start} {end}\n{text}\n")
@@ -49,9 +49,14 @@ def create_subcap_text(blocks):
 # Streamlit UI
 st.title("EDL → SubCap Converter")
 
-uploaded_file = st.file_uploader("EDL-Datei hochladen", type=["edl", "txt"])
+uploaded_file = st.file_uploader("Upload EDL file", type=["edl", "txt"])
 
 if uploaded_file is not None:
+    # Dynamically create filename
+    base_name = os.path.splitext(uploaded_file.name)[0]
+    today_str = datetime.now().strftime("%y%m%d")
+    export_filename = f"{base_name}_SubCaps_{today_str}.txt"
+
     try:
         content = uploaded_file.read().decode("utf-8")
     except UnicodeDecodeError:
@@ -62,14 +67,14 @@ if uploaded_file is not None:
     if blocks:
         subcap_text = create_subcap_text(blocks)
 
-        st.subheader("Vorschau (SubCap Format)")
-        st.text_area("SubCap-Datei", subcap_text, height=400)
+        st.subheader("Preview (SubCap Format)")
+        st.text_area("SubCap File", subcap_text, height=400)
 
         st.download_button(
-            label="📥 SubCap-Datei herunterladen",
+            label="📥 Download SubCap File",
             data=subcap_text,
-            file_name="subcap_export.txt",
+            file_name=export_filename,
             mime="text/plain"
         )
     else:
-        st.error("⚠️ Keine passenden * LOC: Kommentare gefunden.")
+        st.error("⚠️ No matching * LOC: comments found.")
