@@ -1,3 +1,6 @@
+# Dieses Script wurde erstellt von Seb Riezler
+# 2025
+
 import streamlit as st
 import re
 
@@ -44,7 +47,7 @@ def create_subcap_text(blocks):
     return "\n".join(output)
 
 # Streamlit UI
-st.title("EDL → SubCap Converter (Kommentar nach Farbe aus LOC)")
+st.title("EDL → SubCap Converter")
 
 uploaded_file = st.file_uploader("EDL-Datei hochladen", type=["edl", "txt"])
 
