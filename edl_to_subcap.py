@@ -42,7 +42,7 @@ def create_subcap_text(blocks):
     return "\n".join(output)
 
 # Streamlit UI
-st.title("EDL → SubCap Konverter – nur MUM_###_#### aus LOC:")
+st.title("EDL → SubCap Converter")
 
 uploaded_file = st.file_uploader("EDL-Datei hochladen", type=["edl", "txt"])
 
