@@ -93,7 +93,7 @@ def create_marker_xml(blocks):
     return ET.tostring(root, encoding="unicode")
 
 # Streamlit UI
-st.title("EDL → Multi-Format Subtitle Exporter (incl. XML)")
+st.title("EDL → Subtitle Exporter\n(multiple fomrats incl. XML)")
 
 uploaded_file = st.file_uploader("Upload EDL file", type=["edl", "txt"])
 
