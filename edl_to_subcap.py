@@ -1,4 +1,5 @@
 # This script was created by Seb Riezler
+# Final Version: Multi-Format Support & Dual-Download Logic
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -8,6 +9,7 @@ from datetime import datetime
 import base64
 import json
 import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
 def extract_loc_blocks_with_colors(edl_text, separator):
     lines = edl_text.splitlines()
@@ -72,29 +74,38 @@ def format_content(blocks, part_index, fmt):
         return json.dumps(data, indent=4), "application/json", "json"
 
     elif fmt == "Marker XML (.xml)":
-        root = ET.Element("Markers")
+        # Erstellt eine XML-Struktur, die von NLEs (Premiere/Resolve) gelesen werden kann
+        root = ET.Element("Sequence", version="5")
+        markers_node = ET.SubElement(root, "Markers")
         for i, b in enumerate([x for x in blocks if x[part_index]], 1):
-            marker = ET.SubElement(root, "Marker")
+            marker = ET.SubElement(markers_node, "Marker")
             ET.SubElement(marker, "In").text = b[0]
             ET.SubElement(marker, "Out").text = b[1]
             ET.SubElement(marker, "Name").text = b[part_index]
+            ET.SubElement(marker, "Comment").text = f"Part {part_index-2} Export"
             ET.SubElement(marker, "Color").text = b[2]
-        return ET.tostring(root, encoding="unicode"), "application/xml", "xml"
+        
+        # XML hübsch formatieren
+        xml_str = ET.tostring(root, encoding="utf-8")
+        pretty_xml = minidom.parseString(xml_str).toprettyxml(indent="  ")
+        return pretty_xml, "application/xml", "xml"
     
     return "", "text/plain", "txt"
 
-st.set_page_config(layout="wide")
-st.title("EDL → Subtitle Exporter")
+# --- Streamlit UI Setup ---
+st.set_page_config(layout="wide", page_title="EDL Subtitle Exporter")
+st.title("EDL → Subtitle & Marker Exporter")
 
 uploaded_file = st.file_uploader("Upload EDL file", type=["edl", "txt"])
 st.divider()
 
+# --- Settings ---
 st.subheader("Split & Naming Settings")
 c1, c2, c3, c4 = st.columns([1, 1, 1, 2])
 with c1: user_separator = st.text_input("Separator", value="//")
-with c2: suffix_part1 = st.text_input("Suffix Part 1", value="ShotID")
-with c3: suffix_part2 = st.text_input("Suffix Part 2", value="Scope")
-with c4: export_format = st.selectbox("Format", [
+with c2: suffix_part1 = st.text_input("Suffix Part 1", value="ShotIDs")
+with c3: suffix_part2 = st.text_input("Suffix Part 2", value="Scopes")
+with c4: export_format = st.selectbox("Export Format", [
     "Avid SubCap (.txt)", 
     "SRT (.srt)", 
     "VTT (.vtt)", 
@@ -123,12 +134,18 @@ if uploaded_file:
         fname1 = f"{base_name}_{suffix_part1}_{today}.{ext1}"
         fname2 = f"{base_name}_{suffix_part2}_{today}.{ext2}"
 
-        col_p1, col_p2 = st.columns(2)
-        with col_p1: st.text_area(fname1, res1, height=250)
-        with col_p2: st.text_area(fname2, res2, height=250)
+        # Preview Section
+        col_preview1, col_preview2 = st.columns(2)
+        with col_preview1:
+            st.markdown(f"**Preview: {fname1}**")
+            st.text_area("Content 1", res1, height=250, key="prev1")
+        with col_preview2:
+            st.markdown(f"**Preview: {fname2}**")
+            st.text_area("Content 2", res2, height=250, key="prev2")
 
         st.divider()
 
+        # --- Multi-Download JavaScript ---
         b64_1 = base64.b64encode(res1.encode()).decode()
         b64_2 = base64.b64encode(res2.encode()).decode()
 
@@ -141,20 +158,33 @@ if uploaded_file:
                 ];
                 files.forEach((file, index) => {{
                     setTimeout(() => {{
-                        const link = document.body.appendChild(document.createElement("a"));
+                        const link = document.createElement("a");
                         link.href = file.data;
                         link.download = file.name;
+                        document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                    }}, index * 300);
+                    }}, index * 400); // 400ms delay to ensure browser handles dual download
                 }});
             }}
             </script>
-            <button onclick="downloadFiles()" style="background-color: #ff4b4b; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
-                📥 Download Both {ext1.upper()} Files
-            </button>
+            <div style="text-align: center;">
+                <button onclick="downloadFiles()" style="
+                    background-color: #ff4b4b; 
+                    color: white; 
+                    padding: 15px 32px; 
+                    border: none; 
+                    border-radius: 8px; 
+                    cursor: pointer; 
+                    font-size: 16px;
+                    font-weight: bold;
+                    width: 100%;
+                ">
+                    📥 Download Both {ext1.upper()} Files
+                </button>
+            </div>
         """
-        components.html(dl_script, height=80)
-        st.caption("Note: Allow multiple downloads in your browser settings if prompted.")
+        components.html(dl_script, height=100)
+        st.info("💡 Pro Tip: When the browser asks, select 'Allow multiple downloads' for this site.")
     else:
-        st.warning("No matching entries found.")
+        st.warning("No valid Locator blocks found. Please check your EDL and Separator.")
