@@ -6,6 +6,8 @@ import re
 import os
 from datetime import datetime
 import base64
+import json
+import xml.etree.ElementTree as ET
 
 def extract_loc_blocks_with_colors(edl_text, separator):
     lines = edl_text.splitlines()
@@ -49,12 +51,35 @@ def format_content(blocks, part_index, fmt):
         for i, b in enumerate([x for x in blocks if x[part_index]], 1):
             lines.append(f"{i}\n{tc_to_srt(b[0])} --> {tc_to_srt(b[1])}\n{b[part_index]}\n")
         return "\n".join(lines), "text/plain", "srt"
+
+    elif fmt == "VTT (.vtt)":
+        lines = ["WEBVTT\n\n"]
+        for b in blocks:
+            if b[part_index]:
+                start = tc_to_srt(b[0]).replace(",", ".")
+                end = tc_to_srt(b[1]).replace(",", ".")
+                lines.append(f"{start} --> {end}\n{b[part_index]}\n")
+        return "\n".join(lines), "text/vtt", "vtt"
     
     elif fmt == "CSV (.csv)":
         lines = ["In,Out,Content"]
         for b in blocks:
             if b[part_index]: lines.append(f'{b[0]},{b[1]},"{b[part_index]}"')
         return "\n".join(lines), "text/csv", "csv"
+
+    elif fmt == "JSON (.json)":
+        data = [{"in": b[0], "out": b[1], "content": b[part_index]} for b in blocks if b[part_index]]
+        return json.dumps(data, indent=4), "application/json", "json"
+
+    elif fmt == "Marker XML (.xml)":
+        root = ET.Element("Markers")
+        for i, b in enumerate([x for x in blocks if x[part_index]], 1):
+            marker = ET.SubElement(root, "Marker")
+            ET.SubElement(marker, "In").text = b[0]
+            ET.SubElement(marker, "Out").text = b[1]
+            ET.SubElement(marker, "Name").text = b[part_index]
+            ET.SubElement(marker, "Color").text = b[2]
+        return ET.tostring(root, encoding="unicode"), "application/xml", "xml"
     
     return "", "text/plain", "txt"
 
@@ -65,12 +90,18 @@ uploaded_file = st.file_uploader("Upload EDL file", type=["edl", "txt"])
 st.divider()
 
 st.subheader("Split & Naming Settings")
-# Vier Spalten für die Einstellungen
 c1, c2, c3, c4 = st.columns([1, 1, 1, 2])
 with c1: user_separator = st.text_input("Separator", value="//")
 with c2: suffix_part1 = st.text_input("Suffix Part 1", value="ShotID")
 with c3: suffix_part2 = st.text_input("Suffix Part 2", value="Scope")
-with c4: export_format = st.selectbox("Format", ["Avid SubCap (.txt)", "SRT (.srt)", "CSV (.csv)"])
+with c4: export_format = st.selectbox("Format", [
+    "Avid SubCap (.txt)", 
+    "SRT (.srt)", 
+    "VTT (.vtt)", 
+    "CSV (.csv)", 
+    "JSON (.json)", 
+    "Marker XML (.xml)"
+])
 
 st.divider()
 
@@ -110,10 +141,9 @@ if uploaded_file:
                 ];
                 files.forEach((file, index) => {{
                     setTimeout(() => {{
-                        const link = document.createElement("a");
+                        const link = document.body.appendChild(document.createElement("a"));
                         link.href = file.data;
                         link.download = file.name;
-                        document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                     }}, index * 300);
@@ -125,5 +155,6 @@ if uploaded_file:
             </button>
         """
         components.html(dl_script, height=80)
+        st.caption("Note: Allow multiple downloads in your browser settings if prompted.")
     else:
         st.warning("No matching entries found.")
