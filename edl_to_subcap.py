@@ -10,8 +10,7 @@ import base64
 def extract_loc_blocks_with_colors(edl_text, separator):
     lines = edl_text.splitlines()
     blocks = []
-    last_src_start = None
-    last_src_end = None
+    last_src_start = last_src_end = None
     timecode_pattern = re.compile(r"\d{2}:\d{2}:\d{2}:\d{2}")
     loc_full_pattern = re.compile(r"\* ?LOC:\s*\d{2}:\d{2}:\d{2}:\d{2}\s+(\S+)\s+(.*)", re.IGNORECASE)
 
@@ -32,24 +31,47 @@ def extract_loc_blocks_with_colors(edl_text, separator):
                 last_src_start = last_src_end = None
     return blocks
 
-def create_subcap_txt(blocks, part_index):
-    output = ["<begin subtitles>\n"]
-    for b in blocks:
-        if b[part_index]:
-            output.append(f"{b[0]} {b[1]}\n{b[part_index]}\n")
-    output.append("<end subtitles>\n")
-    return "\n".join(output)
+def tc_to_srt(tc):
+    hh, mm, ss, ff = map(int, tc.split(":"))
+    ms = int((ff / 25) * 1000)
+    return f"{hh:02}:{mm:02}:{ss:02},{ms:03}"
 
+def format_content(blocks, part_index, fmt):
+    if fmt == "Avid SubCap (.txt)":
+        output = ["<begin subtitles>\n"]
+        for b in blocks:
+            if b[part_index]: output.append(f"{b[0]} {b[1]}\n{b[part_index]}\n")
+        output.append("<end subtitles>\n")
+        return "\n".join(output), "text/plain", "txt"
+    
+    elif fmt == "SRT (.srt)":
+        lines = []
+        for i, b in enumerate([x for x in blocks if x[part_index]], 1):
+            lines.append(f"{i}\n{tc_to_srt(b[0])} --> {tc_to_srt(b[1])}\n{b[part_index]}\n")
+        return "\n".join(lines), "text/plain", "srt"
+    
+    elif fmt == "CSV (.csv)":
+        lines = ["In,Out,Content"]
+        for b in blocks:
+            if b[part_index]: lines.append(f'{b[0]},{b[1]},"{b[part_index]}"')
+        return "\n".join(lines), "text/csv", "csv"
+    
+    return "", "text/plain", "txt"
+
+st.set_page_config(layout="wide")
 st.title("EDL → Subtitle Exporter")
 
 uploaded_file = st.file_uploader("Upload EDL file", type=["edl", "txt"])
 st.divider()
 
 st.subheader("Split & Naming Settings")
-c1, c2, c3 = st.columns(3)
+# Vier Spalten für die Einstellungen
+c1, c2, c3, c4 = st.columns([1, 1, 1, 2])
 with c1: user_separator = st.text_input("Separator", value="//")
 with c2: suffix_part1 = st.text_input("Suffix Part 1", value="ShotID")
-with c3: suffix_part2 = st.text_input("Suffix Part 2", value="ScopeOfWork")
+with c3: suffix_part2 = st.text_input("Suffix Part 2", value="Scope")
+with c4: export_format = st.selectbox("Format", ["Avid SubCap (.txt)", "SRT (.srt)", "CSV (.csv)"])
+
 st.divider()
 
 if uploaded_file:
@@ -64,18 +86,18 @@ if uploaded_file:
         base_name = os.path.splitext(uploaded_file.name)[0]
         today = datetime.now().strftime("%y%m%d")
         
-        res1 = create_subcap_txt(all_blocks, 3)
-        res2 = create_subcap_txt(all_blocks, 4)
-        fname1 = f"{base_name}_{suffix_part1}_{today}.txt"
-        fname2 = f"{base_name}_{suffix_part2}_{today}.txt"
+        res1, mime1, ext1 = format_content(all_blocks, 3, export_format)
+        res2, mime2, ext2 = format_content(all_blocks, 4, export_format)
+        
+        fname1 = f"{base_name}_{suffix_part1}_{today}.{ext1}"
+        fname2 = f"{base_name}_{suffix_part2}_{today}.{ext2}"
 
         col_p1, col_p2 = st.columns(2)
-        with col_p1: st.text_area(fname1, res1, height=200)
-        with col_p2: st.text_area(fname2, res2, height=200)
+        with col_p1: st.text_area(fname1, res1, height=250)
+        with col_p2: st.text_area(fname2, res2, height=250)
 
         st.divider()
 
-        # JS Multi-Download logic
         b64_1 = base64.b64encode(res1.encode()).decode()
         b64_2 = base64.b64encode(res2.encode()).decode()
 
@@ -83,8 +105,8 @@ if uploaded_file:
             <script>
             function downloadFiles() {{
                 const files = [
-                    {{ name: "{fname1}", data: "data:text/plain;base64,{b64_1}" }},
-                    {{ name: "{fname2}", data: "data:text/plain;base64,{b64_2}" }}
+                    {{ name: "{fname1}", data: "data:{mime1};base64,{b64_1}" }},
+                    {{ name: "{fname2}", data: "data:{mime2};base64,{b64_2}" }}
                 ];
                 files.forEach((file, index) => {{
                     setTimeout(() => {{
@@ -94,27 +116,14 @@ if uploaded_file:
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                    }}, index * 250); // Small delay to help browsers handle multiple triggers
+                    }}, index * 300);
                 }});
             }}
             </script>
-            <div style="display: flex; justify-content: center;">
-                <button onclick="downloadFiles()" style="
-                    background-color: #ff4b4b; 
-                    color: white; 
-                    padding: 12px 24px; 
-                    border: none; 
-                    border-radius: 8px; 
-                    cursor: pointer; 
-                    font-family: sans-serif;
-                    font-weight: bold;
-                    width: 100%;
-                ">
-                    📥 Download Both Files (Separate TXTs)
-                </button>
-            </div>
+            <button onclick="downloadFiles()" style="background-color: #ff4b4b; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
+                📥 Download Both {ext1.upper()} Files
+            </button>
         """
         components.html(dl_script, height=80)
-        st.caption("Note: If prompted, please allow 'Multiple Downloads' in your browser.")
     else:
         st.warning("No matching entries found.")
