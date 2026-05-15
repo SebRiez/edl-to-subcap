@@ -162,31 +162,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="title-text">EDL → Subcap</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle-text">EDL Dateien in Untertitel und Marker konvertieren</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle-text">Convert EDL files into subtitles and markers</div>', unsafe_allow_html=True)
 
 with st.container(border=True):
-    uploaded_file = st.file_uploader("EDL Datei hochladen", type=["edl", "txt"], help="Max 200MB")
+    uploaded_file = st.file_uploader("Upload EDL File", type=["edl", "txt"], help="Max 200MB")
 
 st.write("") # Spacing
 
 with st.container(border=True):
-    st.markdown("### ⚙️ Einstellungen")
+    st.markdown("### ⚙️ Settings")
     st.write("")
     
     export_format = st.selectbox(
-        "Export Format", 
+        "Export Formats", 
         ["Avid SubCap (.txt)", "SRT (.srt)", "VTT (.vtt)", "CSV (.csv)", "JSON (.json)", "Marker XML (.xml)"]
     )
     
     st.markdown("---")
     
-    use_split = st.toggle("Split-Funktion aktivieren", value=True)
+    use_split = st.toggle("Enable Split Function", value=True)
     
     if use_split:
         c1, c2, c3 = st.columns(3)
         with c1: user_separator = st.text_input("Separator", value="//")
-        with c2: suffix_part1 = st.text_input("Suffix Teil 1", value="ShotIDs")
-        with c3: suffix_part2 = st.text_input("Suffix Teil 2", value="SoW")
+        with c2: suffix_part1 = st.text_input("Name SubCapFile 01", value="ShotIDs")
+        with c3: suffix_part2 = st.text_input("Name  SubCapFile 02", value="SoW")
     else:
         user_separator = None
         suffix_part1 = "Export"
@@ -214,13 +214,13 @@ if uploaded_file:
                 </script>
                 <button onclick="dl()" style="background:#007A5A;color:white;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;width:100%;font-family:inherit;">
                     <svg style="width:16px;height:16px;vertical-align:middle;margin-right:8px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    Konvertieren & Download
+                    Convert & Download
                 </button>
             """
             components.html(dl_btn, height=60)
         else:
             res, mime, ext = format_content(all_blocks, 3, export_format)
             fname = f"{base_name}_{suffix_part1}_{today}.{ext}"
-            st.download_button("📥 Konvertieren & Download", res, fname, mime=mime, use_container_width=True)
+            st.download_button("📥 Convert & Download", res, fname, mime=mime, use_container_width=True)
 
-st.markdown('<div class="footer-text">Die Verarbeitung erfolgt lokal in deinem Browser</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer-text">Processing happens locally in your browser</div>', unsafe_allow_html=True)
