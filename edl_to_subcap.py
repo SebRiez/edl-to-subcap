@@ -95,6 +95,13 @@ st.markdown("""
         background-color: transparent;
     }
     
+    /* 50% Width Constraint for the main container */
+    [data-testid="block-container"] {
+        max-width: 50% !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+    
     /* Typography */
     .title-text {
         text-align: center;
@@ -217,6 +224,8 @@ if uploaded_file:
             st.write("") # Spacing
 
             b64_1, b64_2 = base64.b64encode(res1.encode()).decode(), base64.b64encode(res2.encode()).decode()
+            
+            # HTML Button Wrapper mit Flexbox zum Zentrieren und auf 50% der neuen Breite gesetzt (entspricht 25% der Gesamtbreite)
             dl_btn = f"""
                 <script>
                 function dl() {{
@@ -224,20 +233,24 @@ if uploaded_file:
                     files.forEach((f,i)=>{{setTimeout(()=>{{const a=document.createElement("a");a.href=f.d;a.download=f.n;document.body.appendChild(a);a.click();document.body.removeChild(a);}},i*400);}});
                 }}
                 </script>
-                <button onclick="dl()" style="background:#007A5A;color:white;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;width:100%;font-family: 'Source Sans Pro', sans-serif;">
-                    <svg style="width:16px;height:16px;vertical-align:middle;margin-right:8px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    Convert & Download Both Files
-                </button>
+                <div style="display: flex; justify-content: center; width: 100%;">
+                    <button onclick="dl()" style="background:#007A5A;color:white;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;width:50%;min-width:300px;white-space:nowrap;font-family: 'Source Sans Pro', sans-serif;">
+                        <svg style="width:16px;height:16px;vertical-align:middle;margin-right:8px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Convert & Download Both Files
+                    </button>
+                </div>
             """
-            components.html(dl_btn, height=60)
+            components.html(dl_btn, height=80)
         else:
             res, mime, ext = format_content(all_blocks, 3, export_format)
             fname = f"{base_name}_{suffix_part1}_{today}.{ext}"
             
-            # Single Preview
             st.text_area(f"Name: {fname}", res, height=300)
             st.write("") # Spacing
             
-            st.download_button("📥 Convert & Download", res, fname, mime=mime, use_container_width=True)
+            # Native Streamlit Button zentrieren (1.5 - 1 - 1.5 Ratio entspricht 25% in der Mitte)
+            _, btn_col, _ = st.columns([1.5, 1, 1.5])
+            with btn_col:
+                st.download_button("📥 Convert & Download", res, fname, mime=mime, use_container_width=True)
 
 st.markdown('<div class="footer-text">Processing happens locally in your browser</div>', unsafe_allow_html=True)
