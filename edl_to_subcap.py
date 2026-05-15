@@ -82,7 +82,7 @@ def format_content(blocks, part_index, fmt):
     return "", "text/plain", "txt"
 
 # --- UI Setup ---
-st.set_page_config(page_title="EDL → Subcap", layout="centered")
+st.set_page_config(page_title="EDL → Subcap", layout="wide") 
 
 st.markdown("""
 <style>
@@ -129,8 +129,8 @@ st.markdown("""
         background-color: #111822;
     }
     
-    /* Inputs */
-    .stTextInput input, .stSelectbox > div > div > div {
+    /* Inputs & Text Areas */
+    .stTextInput input, .stSelectbox > div > div > div, .stTextArea textarea {
         background-color: #1e2433 !important;
         color: white !important;
         border: 1px solid #334155 !important;
@@ -174,7 +174,7 @@ with st.container(border=True):
     st.write("")
     
     export_format = st.selectbox(
-        "Export Formats", 
+        "Export Format", 
         ["Avid SubCap (.txt)", "SRT (.srt)", "VTT (.vtt)", "CSV (.csv)", "JSON (.json)", "Marker XML (.xml)"]
     )
     
@@ -185,8 +185,8 @@ with st.container(border=True):
     if use_split:
         c1, c2, c3 = st.columns(3)
         with c1: user_separator = st.text_input("Separator", value="//")
-        with c2: suffix_part1 = st.text_input("Name SubCapFile 01", value="ShotIDs")
-        with c3: suffix_part2 = st.text_input("Name  SubCapFile 02", value="SoW")
+        with c2: suffix_part1 = st.text_input("Suffix SubCap 01", value="ShotIDs")
+        with c3: suffix_part2 = st.text_input("Suffix SubCap 02", value="SoW")
     else:
         user_separator = None
         suffix_part1 = "Export"
@@ -199,10 +199,22 @@ if uploaded_file:
         base_name = os.path.splitext(uploaded_file.name)[0]
         today = datetime.now().strftime("%y%m%d")
         
+        st.write("")
+        st.markdown("### 👁️ Preview")
+        
         if use_split:
             res1, mime1, ext1 = format_content(all_blocks, 3, export_format)
             res2, mime2, ext2 = format_content(all_blocks, 4, export_format)
             fname1, fname2 = f"{base_name}_{suffix_part1}_{today}.{ext1}", f"{base_name}_{suffix_part2}_{today}.{ext1}"
+
+            # Previews side by side
+            cp1, cp2 = st.columns(2)
+            with cp1:
+                st.text_area(f"Name: {fname1}", res1, height=250)
+            with cp2:
+                st.text_area(f"Name: {fname2}", res2, height=250)
+            
+            st.write("") # Spacing
 
             b64_1, b64_2 = base64.b64encode(res1.encode()).decode(), base64.b64encode(res2.encode()).decode()
             dl_btn = f"""
@@ -212,15 +224,20 @@ if uploaded_file:
                     files.forEach((f,i)=>{{setTimeout(()=>{{const a=document.createElement("a");a.href=f.d;a.download=f.n;document.body.appendChild(a);a.click();document.body.removeChild(a);}},i*400);}});
                 }}
                 </script>
-                <button onclick="dl()" style="background:#007A5A;color:white;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;width:100%;font-family:inherit;">
+                <button onclick="dl()" style="background:#007A5A;color:white;padding:12px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;width:100%;font-family: 'Source Sans Pro', sans-serif;">
                     <svg style="width:16px;height:16px;vertical-align:middle;margin-right:8px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    Convert & Download
+                    Convert & Download Both Files
                 </button>
             """
             components.html(dl_btn, height=60)
         else:
             res, mime, ext = format_content(all_blocks, 3, export_format)
             fname = f"{base_name}_{suffix_part1}_{today}.{ext}"
+            
+            # Single Preview
+            st.text_area(f"Name: {fname}", res, height=300)
+            st.write("") # Spacing
+            
             st.download_button("📥 Convert & Download", res, fname, mime=mime, use_container_width=True)
 
 st.markdown('<div class="footer-text">Processing happens locally in your browser</div>', unsafe_allow_html=True)
